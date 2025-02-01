@@ -27,6 +27,7 @@ impl SceneManager {
 
     /// Load a new scene
     pub fn load_scene(&self, scene_tree: &mut Gd<SceneTree>, scene_path: &str) {
+        godot_print!("load: {}", scene_path);
         // Push the current scene to the stack
         if let Some(current_scene) = self.get_current_scene(scene_tree) {
             let mut scene_stack = self.scene_stack.lock().unwrap();
@@ -43,6 +44,7 @@ impl SceneManager {
 
         // Pop the current scene
         if let Some(previous_scene) = scene_stack.pop() {
+            godot_print!("go back: {}", previous_scene);
             // Load the previous scene
             scene_tree.change_scene_to_file(&previous_scene);
         }
