@@ -1,0 +1,8 @@
+[package]
+name = "godot-plugin"
+version = "0.1.0"
+edition = "2024"
+authors = ["linyiyu <linyiyu1992@gmail.com>"]
+
+[dependencies]
+godot = "0.2"
