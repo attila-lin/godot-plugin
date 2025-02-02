@@ -9,6 +9,6 @@ pub use scene_manager::SceneManager;
 mod lark;
 #[cfg(feature = "ddt")]
 pub use lark::{DateManager, SpreadSheet, Table};
-/// re-export open_lark
+/// re-export open_lark and Record
 #[cfg(feature = "ddt")]
-pub use open_lark;
+pub use open_lark::{self, service::bitable::v1::Record};
