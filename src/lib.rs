@@ -8,7 +8,7 @@ pub use scene_manager::SceneManager;
 #[cfg(feature = "ddt")]
 mod lark;
 #[cfg(feature = "ddt")]
-pub use lark::{DateManager, Table};
+pub use lark::{DateManager, SpreadSheet, Table};
 /// re-export open_lark
 #[cfg(feature = "ddt")]
 pub use open_lark;

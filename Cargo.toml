@@ -16,7 +16,7 @@ thiserror = "2.0"
 moka = { version = "0.12", features = ["future"] }
 
 [features]
-default = []
+default = ["ddt"]
 
 godot = ["dep:godot"]
 ddt = ["dep:open-lark"]
