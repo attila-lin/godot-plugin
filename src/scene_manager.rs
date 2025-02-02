@@ -3,9 +3,6 @@ use std::sync::{LazyLock, Mutex};
 
 use godot::prelude::*;
 
-/// re-export open_lark
-pub use open_lark;
-
 #[derive(GodotClass)]
 #[class(no_init)]
 pub struct SceneManager {
