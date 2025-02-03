@@ -37,6 +37,17 @@ impl DateManager {
         }
     }
 
+    /// godot 中加载表格
+    ///
+    /// 需要用到 godot_tokio
+    #[cfg(feature = "godot")]
+    pub fn load_table_in_godot<T: Table>() -> Result<T::Output, Error> {
+        let rt = godot_tokio::AsyncRuntime::runtime().unwrap();
+        tokio::task::block_in_place(move || {
+            rt.block_on(async { DateManager::singleton().load_table::<T>().await })
+        })
+    }
+
     /// 拿到表的所有数据
     pub async fn load_table<T: Table>(&self) -> Result<T::Output, Error> {
         let name = T::table_name();

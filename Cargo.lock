@@ -500,11 +500,22 @@ name = "godot-plugin"
 version = "0.1.0"
 dependencies = [
  "godot",
+ "godot_tokio",
  "moka",
  "open-lark",
  "serde",
  "serde_json",
  "thiserror 2.0.11",
+ "tokio",
+]
+
+[[package]]
+name = "godot_tokio"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9df88414f8f54a17430fb1329c39de5bddce616feeae23d1eb0d51237cfa0d64"
+dependencies = [
+ "godot",
  "tokio",
 ]
 
