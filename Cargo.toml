@@ -6,7 +6,7 @@ authors = ["linyiyu <linyiyu1992@gmail.com>"]
 
 [dependencies]
 godot = { version = "0.2", optional = true }
-godot_tokio = { version = "0.1", optional = true }
+godot_tokio = { version = "0.2", optional = true }
 # open-lark = { version = "0.3", optional = true }
 open-lark = { git = "https://github.com/foxzool/open-lark.git", optional = true }
 
