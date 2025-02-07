@@ -65,6 +65,17 @@ impl DateManager {
         Ok(output)
     }
 
+    /// godot 中加载表格
+    ///
+    /// 需要用到 godot_tokio
+    #[cfg(feature = "godot")]
+    pub fn load_sheet_in_godot<S: SpreadSheet>() -> Result<S::Output, Error> {
+        let rt = godot_tokio::AsyncRuntime::runtime().unwrap();
+        tokio::task::block_in_place(move || {
+            rt.block_on(async { DateManager::singleton().load_sheet::<S>().await })
+        })
+    }
+
     /// 拿到 spreadsheet 的所有数据
     pub async fn load_sheet<S: SpreadSheet>(&self) -> Result<S::Output, Error> {
         let name = S::table_name();
