@@ -43,7 +43,7 @@ impl DateManager {
     /// 需要用到 godot_tokio
     #[cfg(feature = "godot")]
     pub fn load_table_in_godot<T: Table>() -> Result<T::Output, Error> {
-        let rt = godot_tokio::AsyncRuntime::runtime().unwrap();
+        let rt = godot_tokio::AsyncRuntime::runtime();
         tokio::task::block_in_place(move || {
             rt.block_on(async { DateManager::singleton().load_table::<T>().await })
         })
@@ -71,7 +71,7 @@ impl DateManager {
     /// 需要用到 godot_tokio
     #[cfg(feature = "godot")]
     pub fn load_sheet_in_godot<S: SpreadSheet>() -> Result<S::Output, Error> {
-        let rt = godot_tokio::AsyncRuntime::runtime().unwrap();
+        let rt = godot_tokio::AsyncRuntime::runtime();
         tokio::task::block_in_place(move || {
             rt.block_on(async { DateManager::singleton().load_sheet::<S>().await })
         })
