@@ -13,6 +13,7 @@ pub use spreadsheet::SpreadSheet;
 
 use std::any::Any;
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 use moka::future::Cache;
 use open_lark::client::LarkClient;
@@ -25,8 +26,8 @@ pub struct DateManager {
 
 impl DateManager {
     pub fn singleton() -> &'static Self {
-        static DATE_MANAGER: std::sync::OnceLock<DateManager> = std::sync::OnceLock::new();
-        DATE_MANAGER.get_or_init(|| DateManager::new())
+        static DATE_MANAGER: OnceLock<DateManager> = OnceLock::new();
+        DATE_MANAGER.get_or_init(DateManager::new)
     }
 
     fn new() -> Self {
@@ -77,12 +78,14 @@ impl DateManager {
     }
 
     /// 拿到 spreadsheet 的所有数据
+    ///
+    /// FIXME: no clone
     pub async fn load_sheet<S: SpreadSheet>(&self) -> Result<S::Output, Error> {
         let name = S::table_name();
         if let Some(cached) = self.cache.get(name).await {
             return Ok(cached
                 .downcast_ref::<S::Output>()
-                .expect(&format!("Type mismatch in cache: {}", name))
+                .unwrap_or_else(|| panic!("Type mismatch in cache: {}", name))
                 .clone());
         }
 
@@ -100,7 +103,7 @@ impl DateManager {
     // }
 }
 
-struct DDTClient {
+pub struct DDTClient {
     lark: LarkClient,
     /// 我们默认使用一个固定的表格
     spread_sheet_token: Option<String>,
