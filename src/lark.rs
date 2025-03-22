@@ -18,16 +18,17 @@ use std::sync::OnceLock;
 use moka::future::Cache;
 use open_lark::client::LarkClient;
 
-pub struct DateManager {
+/// 策划数据管理器
+pub struct DataManager {
     client: DDTClient,
     /// 用于缓存数据
     cache: Cache<String, Arc<dyn Any + Send + Sync>>,
 }
 
-impl DateManager {
+impl DataManager {
     pub fn singleton() -> &'static Self {
-        static DATE_MANAGER: OnceLock<DateManager> = OnceLock::new();
-        DATE_MANAGER.get_or_init(DateManager::new)
+        static DATE_MANAGER: OnceLock<DataManager> = OnceLock::new();
+        DATE_MANAGER.get_or_init(Self::new)
     }
 
     fn new() -> Self {
@@ -45,7 +46,7 @@ impl DateManager {
     pub fn load_table_in_godot<T: Table>() -> Result<T::Output, Error> {
         let rt = godot_tokio::AsyncRuntime::runtime();
         tokio::task::block_in_place(move || {
-            rt.block_on(async { DateManager::singleton().load_table::<T>().await })
+            rt.block_on(async { DataManager::singleton().load_table::<T>().await })
         })
     }
 
@@ -70,30 +71,27 @@ impl DateManager {
     ///
     /// 需要用到 godot_tokio
     #[cfg(feature = "godot")]
-    pub fn load_sheet_in_godot<S: SpreadSheet>() -> Result<S::Output, Error> {
+    pub fn load_sheet_in_godot<S: SpreadSheet>() -> Result<Arc<S::Output>, Error> {
         let rt = godot_tokio::AsyncRuntime::runtime();
         tokio::task::block_in_place(move || {
-            rt.block_on(async { DateManager::singleton().load_sheet::<S>().await })
+            rt.block_on(async { Self::singleton().load_sheet::<S>().await })
         })
     }
 
     /// 拿到 spreadsheet 的所有数据
-    ///
-    /// FIXME: no clone
-    pub async fn load_sheet<S: SpreadSheet>(&self) -> Result<S::Output, Error> {
+    pub async fn load_sheet<S: SpreadSheet>(&self) -> Result<Arc<S::Output>, Error> {
         let name = S::table_name();
         if let Some(cached) = self.cache.get(name).await {
             return Ok(cached
-                .downcast_ref::<S::Output>()
+                .downcast_ref::<Arc<S::Output>>()
                 .unwrap_or_else(|| panic!("Type mismatch in cache: {}", name))
                 .clone());
         }
 
         let output = S::load(&self.client).await?;
-        self.cache
-            .insert(name.to_owned(), Arc::new(output.clone()))
-            .await;
-        Ok(output)
+        let arc_output = Arc::new(output.clone());
+        self.cache.insert(name.to_owned(), arc_output.clone()).await;
+        Ok(arc_output)
     }
 
     // fn write_to_file(&self) {
