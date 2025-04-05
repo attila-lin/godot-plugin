@@ -8,7 +8,8 @@ authors = ["linyiyu <linyiyu1992@gmail.com>"]
 godot = { version = "0.2", optional = true }
 godot_tokio = { version = "0.3", optional = true }
 # open-lark = { version = "0.3", optional = true }
-open-lark = { git = "https://github.com/foxzool/open-lark.git", optional = true }
+open-lark = { git = "https://github.com/attila-lin/open-lark.git", branch = "dev/helper", optional = true }
+# open-lark = { path = "../open-lark", optional = true }
 poem = { version = "3", features = [], optional = true }
 
 serde = { version = "1.0", features = ["derive"] }
