@@ -50,7 +50,8 @@ impl SceneManager {
         }
     }
 
-    fn get_current_scene(&self, scene_tree: &mut Gd<SceneTree>) -> Option<String> {
+    /// get current scene name
+    pub fn get_current_scene(&self, scene_tree: &mut Gd<SceneTree>) -> Option<String> {
         let current_scene = scene_tree.get_current_scene();
         current_scene.map(|node| node.get_scene_file_path().to_string())
     }

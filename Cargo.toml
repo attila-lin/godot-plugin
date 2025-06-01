@@ -5,8 +5,10 @@ edition = "2024"
 authors = ["linyiyu <linyiyu1992@gmail.com>"]
 
 [dependencies]
-godot = { version = "0.2", optional = true }
-godot_tokio = { version = "0.3", optional = true }
+godot = { version = "0.3", optional = true }
+# godot_tokio = { version = "0.3", optional = true }
+godot_tokio = { git = "https://github.com/attila-lin/godot_tokio.git", branch = "dev/usemaster2", optional = true }
+
 open-lark = { version = "0.3", optional = true }
 # open-lark = { git = "https://github.com/attila-lin/open-lark.git", branch = "dev/helper", optional = true }
 # open-lark = { path = "../open-lark", optional = true }
@@ -18,10 +20,16 @@ tokio = { version = "1.44", features = [] }
 thiserror = "2.0"
 moka = { version = "0.12", features = ["future"] }
 
+reqwest = { version = "0.12", features = [
+    "json",
+    "gzip",
+    "blocking",
+], optional = true }
+
 [features]
 default = ["ddt"]
 
-gm = ["godot", "dep:poem"]
+gm = ["dep:poem", "dep:reqwest"]
 
 godot = ["dep:godot", "dep:godot_tokio"]
 ddt = ["dep:open-lark"]
