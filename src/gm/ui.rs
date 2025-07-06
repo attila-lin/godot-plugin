@@ -104,7 +104,7 @@ impl GMCommandTool {
 }
 
 #[derive(GodotClass)]
-#[class(no_init, tool, base = PanelContainer)]
+#[class(tool, base = PanelContainer)]
 pub struct GMPanelContainer {
     h_box: Option<Gd<HBoxContainer>>,
     /// 放 args 的
@@ -234,7 +234,7 @@ impl GMPanelContainer {
 // }
 
 #[derive(GodotClass)]
-#[class(no_init,tool, base = Control)]
+#[class(tool, base = Control)]
 pub struct ArgInput {
     text_input: Option<Gd<TextEdit>>,
     r#type: Option<ArgType>,
