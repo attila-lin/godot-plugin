@@ -26,19 +26,20 @@ pub struct GMCommandTool {
 
     detail: Option<Gd<GMPanelContainer>>,
 
-    // command_list: Option<Gd<ItemList>>,
     base: Base<EditorPlugin>,
 }
+
+const URI: &str = "/gm/commands";
 
 #[godot_api]
 impl IEditorPlugin for GMCommandTool {
     fn enter_tree(&mut self) {
         // read all gm command from server
-        let url = format!("http://10.242.104.45:3000/{}", "gm/commands");
+        let url = format!("http://10.242.104.45:3000{}", URI);
         let commands = reqwest::blocking::get(&url)
             .unwrap()
             .json::<Vec<super::Command>>()
-            .unwrap();
+            .expect("can not connect to server");
         self.commands = commands;
 
         godot_print!("1: {:?}", self.commands);
@@ -87,7 +88,7 @@ impl IEditorPlugin for GMCommandTool {
 impl GMCommandTool {
     #[func]
     fn item_selected(&mut self, index: u32) {
-        godot_print!("{}", index);
+        godot_print!("{index}");
 
         // let ei = self.base_mut().get_editor_interface().unwrap();
         // let mut bc = ei.get_base_control().unwrap();

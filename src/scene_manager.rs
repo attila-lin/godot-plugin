@@ -27,7 +27,7 @@ impl SceneManager {
 
     /// Load a new scene
     pub fn load_scene(&self, scene_tree: &mut Gd<SceneTree>, scene_path: &str) {
-        godot_print!("load: {}", scene_path);
+        godot_print!("load: {scene_path}");
         // Push the current scene to the stack
         if let Some(current_scene) = self.get_current_scene(scene_tree) {
             let mut scene_stack = self.scene_stack.lock().unwrap();

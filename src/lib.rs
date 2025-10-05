@@ -17,3 +17,6 @@ pub use open_lark::{self, service::bitable::v1::Record};
 
 #[cfg(feature = "gm")]
 pub mod gm;
+
+#[cfg(feature = "ui")]
+pub mod ui;
