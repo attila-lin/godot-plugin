@@ -1,4 +1,5 @@
-use open_lark::service::bitable::v1::{Record, SearchAppTableRecordRequest};
+use open_lark::service::bitable::v1::Record;
+use open_lark::service::cloud_docs::bitable::v1::app_table_record::search::SearchRecordRequest;
 // use serde::Serialize;
 // use serde_json::Value;
 // use tokio::sync::OnceCell;
@@ -31,7 +32,7 @@ pub trait Table: Sized + Clone {
     async fn request_records(client: &DDTClient) -> Result<Vec<Record>, Error> {
         let app_token = Self::app_token();
         let table_id = Self::table_id();
-        let req = SearchAppTableRecordRequest::builder()
+        let req = SearchRecordRequest::builder()
             .app_token(app_token)
             .table_id(table_id)
             .build();
