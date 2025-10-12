@@ -10,7 +10,7 @@ godot = { version = "0.4", optional = true }
 # godot_tokio = { version = "0.3", optional = true }
 godot_tokio = { git = "https://github.com/attila-lin/godot_tokio.git", branch = "dev/usemaster2", optional = true }
 moka = { version = "0.12", features = ["future"] }
-open-lark = { version = "0.13", optional = true }
+open-lark = { version = "0.14", optional = true }
 # open-lark = { git = "https://github.com/attila-lin/open-lark.git", branch = "dev/helper", optional = true }
 # open-lark = { path = "../open-lark", optional = true }
 poem = { version = "3", features = [], optional = true }

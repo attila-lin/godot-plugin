@@ -56,7 +56,7 @@ impl DataManager {
         if let Some(cached) = self.cache.get(name).await {
             return Ok(cached
                 .downcast_ref::<T::Output>()
-                .expect(&format!("Type mismatch in cache: {}", name))
+                .unwrap_or_else(|| panic!("Type mismatch in cache: {}", name))
                 .clone());
         }
 
