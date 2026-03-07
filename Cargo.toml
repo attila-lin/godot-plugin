@@ -24,7 +24,7 @@ tokio = { version = "1.47", features = ["rt-multi-thread"] }
 default = [
   "ddt",
 ]
-ddt = ["dep:open-lark"]
+ddt = ["dep:open-lark", "dep:reqwest"]
 gm = ["dep:poem", "dep:reqwest"]
 godot = ["dep:godot"]
 ui = []

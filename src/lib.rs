@@ -10,7 +10,11 @@ pub use scene_manager::SceneManager;
 #[cfg(feature = "ddt")]
 mod lark;
 #[cfg(feature = "ddt")]
-pub use lark::{DataManager, Error as DdtError, SpreadSheet, Table};
+pub use lark::{
+    BitableFieldSpec, BitableFieldType, BitableRecordBatch, BitableRecordBatchTable,
+    BitableSchemaSpec, BitableSyncSummary, BitableTableSpec, BitableUpsertSummary, DDTClient,
+    DataManager, Error as DdtError, SpreadSheet, Table,
+};
 /// re-export open_lark and Record
 #[cfg(feature = "ddt")]
 pub use open_lark::{self, service::bitable::v1::Record};

@@ -8,11 +8,20 @@ pub use error::Error;
 mod bitable;
 pub use bitable::Table;
 
+mod schema;
+pub use schema::{
+    BitableFieldSpec, BitableFieldType, BitableRecordBatch, BitableRecordBatchTable,
+    BitableSchemaSpec, BitableSyncSummary, BitableTableSpec, BitableUpsertSummary,
+};
+
+mod sync;
+
 mod spreadsheet;
 pub use spreadsheet::SpreadSheet;
 
 use std::any::Any;
 use std::any::type_name;
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
@@ -131,6 +140,36 @@ impl DDTClient {
 
         let spread_sheet_token = std::env::var("LARK_SPREAD_SHEET_TOKEN");
         Ok(Self::new(&app_id, &app_secret, spread_sheet_token.ok()))
+    }
+
+    pub async fn sync_bitable_schema(
+        &self,
+        spec: &BitableSchemaSpec,
+    ) -> Result<BitableSyncSummary, Error> {
+        sync::sync_bitable_schema(self, spec).await
+    }
+
+    pub async fn sync_bitable_schema_from_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<BitableSyncSummary, Error> {
+        let spec = BitableSchemaSpec::from_path(path)?;
+        self.sync_bitable_schema(&spec).await
+    }
+
+    pub async fn apply_record_batch(
+        &self,
+        batch: &BitableRecordBatch,
+    ) -> Result<BitableUpsertSummary, Error> {
+        sync::apply_record_batch(self, batch).await
+    }
+
+    pub async fn apply_record_batch_from_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<BitableUpsertSummary, Error> {
+        let batch = BitableRecordBatch::from_path(path)?;
+        self.apply_record_batch(&batch).await
     }
 }
 
