@@ -11,6 +11,7 @@ use godot::classes::PanelContainer;
 use godot::classes::TextEdit;
 use godot::classes::VBoxContainer;
 use godot::prelude::*;
+use serde_json::Number;
 use serde_json::Value;
 
 use super::Arg;
@@ -30,17 +31,19 @@ pub struct GMCommandTool {
 }
 
 const URI: &str = "/gm/commands";
+const DEFAULT_GM_TOOL_BASE_URL: &str = "http://10.242.104.45:3000";
 
 #[godot_api]
 impl IEditorPlugin for GMCommandTool {
     fn enter_tree(&mut self) {
         // read all gm command from server
-        let url = format!("http://10.242.104.45:3000{}", URI);
-        let commands = reqwest::blocking::get(&url)
-            .unwrap()
-            .json::<Vec<super::Command>>()
-            .expect("can not connect to server");
-        self.commands = commands;
+        match fetch_commands() {
+            Ok(commands) => self.commands = commands,
+            Err(err) => {
+                self.commands.clear();
+                godot_error!("failed to fetch GM commands: {err}");
+            }
+        }
 
         godot_print!("1: {:?}", self.commands);
 
@@ -95,9 +98,17 @@ impl GMCommandTool {
 
         // let mut panel = GMPanelContainer::new_alloc();
         // bc.add_child(&panel);
-        let mut panel = self.detail.as_ref().unwrap().clone();
+        let Some(command) = self.commands.get(index as usize).cloned() else {
+            godot_error!("selected GM command index out of range: {index}");
+            return;
+        };
+        let Some(detail) = self.detail.as_ref() else {
+            godot_error!("GM detail panel is not initialized");
+            return;
+        };
+        let mut panel = detail.clone();
         let mut bind_mut = panel.bind_mut();
-        bind_mut.update_detail(self.commands[index as usize].clone());
+        bind_mut.update_detail(command);
 
         // let mut window = panel.get_window().unwrap();
         // window.popup_centered();
@@ -180,9 +191,9 @@ impl GMPanelContainer {
         let mut v_box = self.v_box.as_ref().unwrap().clone();
         {
             let children = v_box.get_children();
-            for child in children.iter_shared() {
-                // godot_print!("remove: {:?}", child);
+            for mut child in children.iter_shared() {
                 v_box.remove_child(&child);
+                child.queue_free();
             }
         }
         let mut arg_inputs = vec![];
@@ -203,12 +214,21 @@ impl GMPanelContainer {
     fn _on_run_pressed(&mut self) {
         godot_print!("run");
 
-        let name = self.command_label.as_ref().unwrap().clone();
+        let Some(name) = self.command_label.as_ref().cloned() else {
+            godot_error!("GM command label is not initialized");
+            return;
+        };
 
         let mut args = vec![];
         for input in &self.args {
             let bind = input.bind();
-            args.push(bind.get_value());
+            match bind.get_value() {
+                Ok(value) => args.push(value),
+                Err(err) => {
+                    godot_error!("invalid GM argument: {err}");
+                    return;
+                }
+            }
         }
 
         let req = RunCommandRequest {
@@ -216,14 +236,15 @@ impl GMPanelContainer {
             args,
         };
 
-        let url = format!("http://10.242.104.45:3000/{}", "gm/run");
         let resp = reqwest::blocking::Client::new()
-            .post(url)
+            .post(format!("{}/gm/run", gm_tool_base_url()))
             .json(&req)
-            .send()
-            .unwrap();
+            .send();
 
-        godot_print!("{:?}", resp.status());
+        match resp {
+            Ok(resp) => godot_print!("{:?}", resp.status()),
+            Err(err) => godot_error!("failed to run GM command: {err}"),
+        }
     }
 }
 
@@ -288,19 +309,44 @@ impl ArgInput {
         self.r#type = Some(arg.r#type);
     }
 
-    fn get_value(&self) -> Value {
+    fn get_value(&self) -> Result<Value, String> {
+        let input = self
+            .text_input
+            .as_ref()
+            .ok_or_else(|| "argument input is not initialized".to_owned())?
+            .clone();
+        let text = input.get_text().to_string();
+
         match self.r#type {
-            Some(ArgType::Int) | Some(ArgType::Number) => {
-                let input = self.text_input.as_ref().unwrap().clone();
-                let i = input.get_text().to_string();
-                Value::Number(i.parse().unwrap())
+            Some(ArgType::Int) => {
+                let value = text
+                    .parse::<i64>()
+                    .map_err(|err| format!("expected integer, got `{text}`: {err}"))?;
+                Ok(Value::Number(Number::from(value)))
             }
-            Some(ArgType::String) => {
-                let input = self.text_input.as_ref().unwrap().clone();
-                let i = input.get_text().to_string();
-                Value::String(i)
+            Some(ArgType::Number) => {
+                let value = text
+                    .parse::<f64>()
+                    .map_err(|err| format!("expected number, got `{text}`: {err}"))?;
+                let value = Number::from_f64(value)
+                    .ok_or_else(|| format!("number must be finite, got `{text}`"))?;
+                Ok(Value::Number(value))
             }
-            _ => unimplemented!(),
+            Some(ArgType::String) => Ok(Value::String(text)),
+            None => Err("argument type is not initialized".to_owned()),
         }
     }
+}
+
+fn gm_tool_base_url() -> String {
+    std::env::var("GM_TOOL_BASE_URL")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_GM_TOOL_BASE_URL.to_owned())
+        .trim_end_matches('/')
+        .to_owned()
+}
+
+fn fetch_commands() -> Result<Vec<Command>, reqwest::Error> {
+    reqwest::blocking::get(format!("{}{}", gm_tool_base_url(), URI))?.json()
 }

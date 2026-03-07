@@ -12,6 +12,7 @@ mod spreadsheet;
 pub use spreadsheet::SpreadSheet;
 
 use std::any::Any;
+use std::any::type_name;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
@@ -27,70 +28,77 @@ pub struct DataManager {
 
 impl DataManager {
     pub fn singleton() -> &'static Self {
-        static DATE_MANAGER: OnceLock<DataManager> = OnceLock::new();
-        DATE_MANAGER.get_or_init(Self::new)
+        static DATA_MANAGER: OnceLock<DataManager> = OnceLock::new();
+        DATA_MANAGER.get_or_init(Self::new)
     }
 
     fn new() -> Self {
-        let client = DDTClient::new_with_env();
+        let client = DDTClient::new_with_env()
+            .unwrap_or_else(|err| panic!("failed to initialize lark client: {err}"));
         Self {
             client,
             cache: Cache::new(64),
         }
     }
 
+    async fn get_cached<T>(&self, key: &'static str) -> Result<Option<T>, Error>
+    where
+        T: Clone + Send + Sync + 'static,
+    {
+        let Some(cached) = self.cache.get(key).await else {
+            return Ok(None);
+        };
+
+        cached
+            .downcast_ref::<T>()
+            .cloned()
+            .map(Some)
+            .ok_or_else(|| Error::CacheTypeMismatch {
+                key: key.to_owned(),
+                expected: type_name::<T>(),
+            })
+    }
+
+    async fn insert_cached<T>(&self, key: &'static str, value: T)
+    where
+        T: Send + Sync + 'static,
+    {
+        self.cache.insert(key.to_owned(), Arc::new(value)).await;
+    }
+
     /// godot 中加载表格
-    ///
-    /// 需要用到 godot_tokio
     #[cfg(feature = "godot")]
     pub fn load_table_in_godot<T: Table>() -> Result<T::Output, Error> {
-        let rt = godot_tokio::AsyncRuntime::runtime();
-        tokio::task::block_in_place(move || {
-            rt.block_on(async { DataManager::singleton().load_table::<T>().await })
-        })
+        godot_runtime().block_on(async { DataManager::singleton().load_table::<T>().await })
     }
 
     /// 拿到表的所有数据
     pub async fn load_table<T: Table>(&self) -> Result<T::Output, Error> {
         let name = T::table_name();
-        if let Some(cached) = self.cache.get(name).await {
-            return Ok(cached
-                .downcast_ref::<T::Output>()
-                .unwrap_or_else(|| panic!("Type mismatch in cache: {}", name))
-                .clone());
+        if let Some(cached) = self.get_cached::<T::Output>(name).await? {
+            return Ok(cached);
         }
 
         let output = T::load(&self.client).await?;
-        self.cache
-            .insert(name.to_owned(), Arc::new(output.clone()))
-            .await;
+        self.insert_cached(name, output.clone()).await;
         Ok(output)
     }
 
     /// godot 中加载表格
-    ///
-    /// 需要用到 godot_tokio
     #[cfg(feature = "godot")]
     pub fn load_sheet_in_godot<S: SpreadSheet>() -> Result<Arc<S::Output>, Error> {
-        let rt = godot_tokio::AsyncRuntime::runtime();
-        tokio::task::block_in_place(move || {
-            rt.block_on(async { Self::singleton().load_sheet::<S>().await })
-        })
+        godot_runtime().block_on(async { Self::singleton().load_sheet::<S>().await })
     }
 
     /// 拿到 spreadsheet 的所有数据
     pub async fn load_sheet<S: SpreadSheet>(&self) -> Result<Arc<S::Output>, Error> {
         let name = S::table_name();
-        if let Some(cached) = self.cache.get(name).await {
-            return Ok(cached
-                .downcast_ref::<Arc<S::Output>>()
-                .unwrap_or_else(|| panic!("Type mismatch in cache: {}", name))
-                .clone());
+        if let Some(cached) = self.get_cached::<Arc<S::Output>>(name).await? {
+            return Ok(cached);
         }
 
-        let output = S::load(&self.client).await?;
-        let arc_output = Arc::new(output.clone());
-        self.cache.insert(name.to_owned(), arc_output.clone()).await;
+        let arc_output = Arc::new(S::load(&self.client).await?);
+        self.insert_cached(name, arc_output.clone()).await;
         Ok(arc_output)
     }
 
@@ -117,11 +125,89 @@ impl DDTClient {
     }
 
     /// 从环境中读取 app_id 和 app_secret
-    pub fn new_with_env() -> Self {
-        let app_id = std::env::var("LARK_APP_ID").unwrap();
-        let app_secret = std::env::var("LARK_APP_SECRET").unwrap();
+    pub fn new_with_env() -> Result<Self, Error> {
+        let app_id = required_env_var("LARK_APP_ID")?;
+        let app_secret = required_env_var("LARK_APP_SECRET")?;
 
         let spread_sheet_token = std::env::var("LARK_SPREAD_SHEET_TOKEN");
-        Self::new(&app_id, &app_secret, spread_sheet_token.ok())
+        Ok(Self::new(&app_id, &app_secret, spread_sheet_token.ok()))
+    }
+}
+
+fn required_env_var(name: &'static str) -> Result<String, Error> {
+    std::env::var(name).map_err(|err| Error::MissingEnvVar {
+        name,
+        reason: err.to_string(),
+    })
+}
+
+#[cfg(feature = "godot")]
+fn godot_runtime() -> &'static tokio::runtime::Runtime {
+    static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+    RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("failed to initialize tokio runtime for godot integration")
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn manager_with_client() -> DataManager {
+        DataManager {
+            client: DDTClient::new("test-app-id", "test-app-secret", None),
+            cache: Cache::new(4),
+        }
+    }
+
+    #[test]
+    fn cache_round_trips_arc_values() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+
+        runtime.block_on(async {
+            let manager = manager_with_client();
+            let value = Arc::new(String::from("sheet"));
+            manager.insert_cached("sheet", value.clone()).await;
+
+            let cached = manager
+                .get_cached::<Arc<String>>("sheet")
+                .await
+                .expect("cached type")
+                .expect("cached value");
+
+            assert_eq!(cached.as_str(), "sheet");
+        });
+    }
+
+    #[test]
+    fn cache_type_mismatch_returns_error() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+
+        runtime.block_on(async {
+            let manager = manager_with_client();
+            manager.insert_cached("sheet", String::from("value")).await;
+
+            let err = manager
+                .get_cached::<u64>("sheet")
+                .await
+                .expect_err("type mismatch should be reported");
+
+            match err {
+                Error::CacheTypeMismatch { key, expected } => {
+                    assert_eq!(key, "sheet");
+                    assert_eq!(expected, type_name::<u64>());
+                }
+                other => panic!("unexpected error: {other}"),
+            }
+        });
     }
 }

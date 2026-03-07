@@ -1,12 +1,11 @@
 use open_lark::service::sheets::v2::data_operation::ReadingSingleRangeRequest;
-use serde::Serialize;
 use serde_json::Value;
 
 use super::DDTClient;
 use super::Error;
 
 /// 从表格中加载数据
-pub trait SpreadSheet: Sized + Clone + Serialize {
+pub trait SpreadSheet: Sized + Clone {
     type Output: Clone + Send + Sync + 'static;
 
     fn sheet_id() -> &'static str;
@@ -18,7 +17,10 @@ pub trait SpreadSheet: Sized + Clone + Serialize {
     /// 数据从多维表格中加载
     async fn load(client: &DDTClient) -> Result<Self::Output, Error> {
         let data = Self::get_data(client).await?;
-        let rows = data.as_array().unwrap();
+        let rows = data.as_array().ok_or(Error::InvalidResponseShape {
+            context: "spreadsheet values",
+            expected: "array of rows",
+        })?;
         let res = Self::from_rows(rows);
         Ok(res)
     }
@@ -28,14 +30,18 @@ pub trait SpreadSheet: Sized + Clone + Serialize {
 
     /// 从表格中加载数据
     async fn get_data(client: &DDTClient) -> Result<Value, Error> {
-        assert!(
-            client.spread_sheet_token.is_some(),
-            "请配置环境变量 LARK_SPREAD_SHEET_TOKEN"
-        );
+        let spreadsheet_token =
+            client
+                .spread_sheet_token
+                .as_deref()
+                .ok_or_else(|| Error::MissingEnvVar {
+                    name: "LARK_SPREAD_SHEET_TOKEN",
+                    reason: "spreadsheet loading requires this token".to_owned(),
+                })?;
 
         let range = format!("{}!{}", Self::sheet_id(), Self::range());
         let req = ReadingSingleRangeRequest::builder()
-            .spreadsheet_token(client.spread_sheet_token.as_ref().unwrap())
+            .spreadsheet_token(spreadsheet_token)
             .range(range)
             .build();
 
@@ -47,7 +53,9 @@ pub trait SpreadSheet: Sized + Clone + Serialize {
             .reading_a_single_range(req, None)
             .await?;
 
-        let data = resp.data.unwrap().value_range;
-        Ok(data.values)
+        let data = resp.data.ok_or(Error::MissingResponseData {
+            context: "spreadsheet range response",
+        })?;
+        Ok(data.value_range.values)
     }
 }

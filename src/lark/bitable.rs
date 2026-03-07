@@ -42,9 +42,10 @@ pub trait Table: Sized + Clone {
             .v1
             .app_table_record
             .search(req, None)
-            .await
-            .unwrap();
-        let data = resp.data.unwrap();
+            .await?;
+        let data = resp.data.ok_or(Error::MissingResponseData {
+            context: "bitable search response",
+        })?;
 
         Ok(data.items)
     }
