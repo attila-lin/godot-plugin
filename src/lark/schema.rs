@@ -242,6 +242,86 @@ pub struct BitableUpsertSummary {
     pub updated_records: usize,
 }
 
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct BitableIntegrityReport {
+    pub tables: Vec<BitableTableIntegrityReport>,
+}
+
+impl BitableIntegrityReport {
+    pub fn is_clean(&self) -> bool {
+        self.tables.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BitableTableIntegrityReport {
+    pub table: String,
+    pub table_id: String,
+    pub key_field: String,
+    pub duplicate_fields: Vec<BitableDuplicateNameCount>,
+    pub renamed_legacy_fields: Vec<BitableFieldReference>,
+    pub duplicate_record_keys: Vec<BitableDuplicateNameCount>,
+    pub missing_key_records: usize,
+    pub record_count: usize,
+    pub field_count: usize,
+}
+
+impl BitableTableIntegrityReport {
+    pub fn has_issues(&self) -> bool {
+        !self.duplicate_fields.is_empty()
+            || !self.renamed_legacy_fields.is_empty()
+            || !self.duplicate_record_keys.is_empty()
+            || self.missing_key_records > 0
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BitableDuplicateNameCount {
+    pub name: String,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BitableFieldReference {
+    pub field_id: String,
+    pub field_name: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct BitableLegacyFieldPurgeSummary {
+    pub apply: bool,
+    pub total_candidate_fields: usize,
+    pub total_deleted_fields: usize,
+    pub tables: Vec<BitableLegacyFieldPurgeTableSummary>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BitableLegacyFieldPurgeTableSummary {
+    pub table: String,
+    pub table_id: String,
+    pub legacy_fields: Vec<BitableFieldReference>,
+    pub deleted_fields: usize,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct BitableRecordDedupSummary {
+    pub apply: bool,
+    pub total_candidate_records: usize,
+    pub total_deleted_records: usize,
+    pub tables: Vec<BitableRecordDedupTableSummary>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BitableRecordDedupTableSummary {
+    pub table: String,
+    pub table_id: String,
+    pub key_field: String,
+    pub duplicate_record_keys: Vec<BitableDuplicateNameCount>,
+    pub missing_key_records: usize,
+    pub duplicate_records: usize,
+    pub deleted_records: usize,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

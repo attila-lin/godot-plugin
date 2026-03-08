@@ -10,8 +10,11 @@ pub use bitable::Table;
 
 mod schema;
 pub use schema::{
-    BitableFieldSpec, BitableFieldType, BitableRecordBatch, BitableRecordBatchTable,
-    BitableSchemaSpec, BitableSyncSummary, BitableTableSpec, BitableUpsertSummary,
+    BitableDuplicateNameCount, BitableFieldReference, BitableFieldSpec, BitableFieldType,
+    BitableIntegrityReport, BitableLegacyFieldPurgeSummary, BitableLegacyFieldPurgeTableSummary,
+    BitableRecordBatch, BitableRecordBatchTable, BitableRecordDedupSummary,
+    BitableRecordDedupTableSummary, BitableSchemaSpec, BitableSyncSummary,
+    BitableTableIntegrityReport, BitableTableSpec, BitableUpsertSummary,
 };
 
 mod sync;
@@ -170,6 +173,75 @@ impl DDTClient {
     ) -> Result<BitableUpsertSummary, Error> {
         let batch = BitableRecordBatch::from_path(path)?;
         self.apply_record_batch(&batch).await
+    }
+
+    pub async fn export_record_batch_from_spec(
+        &self,
+        spec: &BitableSchemaSpec,
+    ) -> Result<BitableRecordBatch, Error> {
+        sync::export_record_batch_from_spec(self, spec).await
+    }
+
+    pub async fn export_record_batch_from_spec_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<BitableRecordBatch, Error> {
+        let spec = BitableSchemaSpec::from_path(path)?;
+        self.export_record_batch_from_spec(&spec).await
+    }
+
+    pub async fn audit_record_batch_integrity(
+        &self,
+        batch: &BitableRecordBatch,
+    ) -> Result<BitableIntegrityReport, Error> {
+        sync::audit_record_batch_integrity(self, batch).await
+    }
+
+    pub async fn audit_record_batch_integrity_from_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<BitableIntegrityReport, Error> {
+        let batch = BitableRecordBatch::from_path(path)?;
+        self.audit_record_batch_integrity(&batch).await
+    }
+
+    pub async fn purge_legacy_fields_from_spec(
+        &self,
+        spec: &BitableSchemaSpec,
+        apply: bool,
+        table_filter: &[String],
+    ) -> Result<BitableLegacyFieldPurgeSummary, Error> {
+        sync::purge_legacy_fields_from_spec(self, spec, apply, table_filter).await
+    }
+
+    pub async fn purge_legacy_fields_from_spec_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+        apply: bool,
+        table_filter: &[String],
+    ) -> Result<BitableLegacyFieldPurgeSummary, Error> {
+        let spec = BitableSchemaSpec::from_path(path)?;
+        self.purge_legacy_fields_from_spec(&spec, apply, table_filter)
+            .await
+    }
+
+    pub async fn dedupe_record_batch(
+        &self,
+        batch: &BitableRecordBatch,
+        apply: bool,
+        table_filter: &[String],
+    ) -> Result<BitableRecordDedupSummary, Error> {
+        sync::dedupe_record_batch(self, batch, apply, table_filter).await
+    }
+
+    pub async fn dedupe_record_batch_from_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+        apply: bool,
+        table_filter: &[String],
+    ) -> Result<BitableRecordDedupSummary, Error> {
+        let batch = BitableRecordBatch::from_path(path)?;
+        self.dedupe_record_batch(&batch, apply, table_filter).await
     }
 }
 
